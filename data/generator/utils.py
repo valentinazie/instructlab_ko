@@ -132,20 +132,20 @@ def openai_completion(
             http_client=httpx.Client(cert=cert, verify=verify),
         )
 
-        # ensure the model specified exists on the server. with backends like vllm, this is crucial.
-        model_list = client.models.list().data
-        model_ids = []
-        for model in model_list:
-            model_ids.append(model.id)
-        if not any(model_name == m for m in model_ids):
-            if model_name == DEFAULT_MODEL_OLD:
-                logging.info(
-                    "Model %s is not a full path. Try running ilab init or edit your config to have the full model path for serving, chatting, and generation.",
-                    model_name,
-                )
-            raise GenerateException(
-                f"Model {model_name} is not served by the server. These are the served models {model_ids}"
-            )
+        # # ensure the model specified exists on the server. with backends like vllm, this is crucial.
+        # model_list = client.models.list().data
+        # model_ids = []
+        # for model in model_list:
+        #     model_ids.append(model.id)
+        # if not any(model_name == m for m in model_ids):
+        #     if model_name == DEFAULT_MODEL_OLD:
+        #         logging.info(
+        #             "Model %s is not a full path. Try running ilab init or edit your config to have the full model path for serving, chatting, and generation.",
+        #             model_name,
+        #         )
+        #     raise GenerateException(
+        #         f"Model {model_name} is not served by the server. These are the served models {model_ids}"
+        #     )
 
         messages = [
             {"role": "system", "content": get_sysprompt()},
@@ -197,26 +197,44 @@ def _make_r_io_base(f, mode: str):
     return f
 
 
-def jdump(obj, f, mode="w", indent=4, default=str):
-    """Dump a str or dictionary to a file in json format.
+# def jdump(obj, f, mode="w", indent=4, default=str):
+#     """Dump a str or dictionary to a file in json format.
 
-    Args:
-        obj: An object to be written.
-        f: A string path to the location on disk.
-        mode: Mode for opening the file.
-        indent: Indent for storing json dictionaries.
-        default: A function to handle non-serializable entries; defaults to `str`.
-    """
+#     Args:
+#         obj: An object to be written.
+#         f: A string path to the location on disk.
+#         mode: Mode for opening the file.
+#         indent: Indent for storing json dictionaries.
+#         default: A function to handle non-serializable entries; defaults to `str`.
+#     """
+#     with _make_w_io_base(f, mode) as f_:
+#         if isinstance(obj, (dict, list)):
+#             json.dump(obj, f_, indent=indent, default=default)
+#         elif isinstance(obj, str):
+#             f_.write(obj)
+#         else:
+#             raise ValueError(f"Unexpected type: {type(obj)}")
+# def jdump(obj, f, mode="w", indent=4, default=str):
+#     print("Writing to file:", obj)  # Add logging before writing
+#     with _make_w_io_base(f, mode) as f_:
+#         if isinstance(obj, (dict, list)):
+#             json.dump(obj, f_, indent=indent, default=default)
+#         elif isinstance(obj, str):
+#             f_.write(obj)
+
+
+# def jload(f, mode="r"):
+#     """Load a .json file into a dictionary."""
+#     with _make_r_io_base(f, mode) as f_:
+#         return json.load(f_)
+def jdump(obj, f, mode="w", indent=4, default=str):
+    print("Writing to file:", obj)  # Improved logging
     with _make_w_io_base(f, mode) as f_:
         if isinstance(obj, (dict, list)):
-            json.dump(obj, f_, indent=indent, default=default)
+            json.dump(obj, f_, ensure_ascii=False, indent=indent, default=default)  # enforce non-ascii characters
         elif isinstance(obj, str):
             f_.write(obj)
-        else:
-            raise ValueError(f"Unexpected type: {type(obj)}")
-
 
 def jload(f, mode="r"):
-    """Load a .json file into a dictionary."""
     with _make_r_io_base(f, mode) as f_:
-        return json.load(f_)
+        return json.load(f_, encoding="utf-8")  # Explicitly set encoding if not default

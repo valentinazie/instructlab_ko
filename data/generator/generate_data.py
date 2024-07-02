@@ -56,6 +56,7 @@ DEFAULT_PROMPT_TEMPLATE_MERLINITE = """\
 문서:
 {{document}}
 
+[예시]
 이 문서에 대해 요청된 질문 유형을 이해하는 데 도움이 되는 몇 가지 예시가 여기에 있습니다:
 {% endif -%}
 """
@@ -89,9 +90,11 @@ DEFAULT_PROMPT_TEMPLATE_MIXTRAL = """\
 {{document}}
 이 문서에 대해 묻는 질문의 유형을 이해하는 데 도움이 되는 몇 가지 예시가 여기에 있습니다:
 {% endif -%}[/INST]
-"""
+"""\
 
 _WORD_DENYLIST = [
+    "요약",
+    "키워드 추출",
     "image",
     "images",
     "graph",
@@ -137,7 +140,10 @@ def encode_prompt(prompt_instructions, prompt):
     If documents exist, randomly select one."""
     idx = 0
     document = None
+    # print("================================== Here is the prompt_instructions[0] ================================")
+    # print(prompt_instructions[0])
     document_list = prompt_instructions[0].get("document")
+    # document_list=''
 
     if document_list:
         document = random.choice(document_list)
@@ -162,12 +168,16 @@ def encode_prompt(prompt_instructions, prompt):
             task_dict["taxonomy_path"],
         )
         instruction = re.sub(r"\s+", " ", instruction).strip().rstrip(":")
-        prompt_input = "<noinput>" if prompt_input.lower() == "" else prompt_input
-        prompt += f"* Task {idx + 1}\n"
+        prompt_input = "<noinstruction>" if prompt_input.lower() == "" else prompt_input
+        prompt+= f"* Task \n"
+        # prompt += f"* Task {idx + 1}\n"
         prompt += f"** Instruction\n{instruction}\n"
         prompt += f"** Input\n{prompt_input}\n"
         prompt += f"** Output\n{prompt_output}\n"
-    prompt += f"* Task {idx + 2}\n"
+    prompt += f"\n\n<|assistant|>\n[태스크 수행]\n* Task \n"
+    # prompt += f"* Task {idx + 2}\n"
+    print("================================== Here is the prompt ================================")
+    print(prompt)
     return prompt
 
 
@@ -190,17 +200,28 @@ def post_process_gpt3_response(num_prompt_instructions, response, discarded_file
     if response is None:
         return [], 0
     raw_instructions = (
-        f"* Task {num_prompt_instructions + 1}\n" + response.message.content
+        # f"* Task {num_prompt_instructions + 1}\n" + response.message.content
+
+        f"* Task \n" + response.message.content
     )
-    raw_instructions = re.split(r"\* Task \d+", raw_instructions)
+    raw_instructions = re.split(r"\* Task +", raw_instructions)
+
+    # raw_instructions = re.split(r"\* Task \d+", raw_instructions)
+    print("================================== Here is the raw_instructions ================================")
+    print(raw_instructions)
+    print('\n\n')
     instructions = []
     discarded = 0
     for inst in raw_instructions:
         if not inst.strip():
             continue
-
-        splitted_data = re.split(r"\*\*\s+(Instruction|Input|Output):?", inst)
-        if len(splitted_data) != 7:
+        
+        splitted_data = re.split(r'\*\*\s+(Instruction|Input|Output):?\s*', inst)
+        # splitted_data = re.split(r"\*\*\s+(Instruction|Input|Output):?", inst)
+        print('splitted data:', splitted_data)
+        print("=-=-=-----=----=---=---=--=-=-=-=-=-===-=-=-")
+        # if len(splitted_data) != 7:
+        if len(splitted_data) < 6:
             writeline2file(
                 discarded_file,
                 "Discarded instruction(didn't match expected format): " + repr(inst),
@@ -405,6 +426,8 @@ def generate_data(
     else:
         raise SystemExit(f"Error: taxonomy ({taxonomy}) does not exist.")
 
+    # print("============================== Here is the taxonomy_base ===============================")
+    # print("taxonomy_base:", taxonomy_base)
     prompt_template = check_prompt_file(
         prompt_file_path, config.get_model_family(model_family, model_name)
     )
