@@ -74,11 +74,18 @@ def create_prompt(
     user: str,
     system: str = CONTEXTS["default"],
 ):
-    return f"""\
-    <|system|>
+    # return f"""\
+    # <|system|>
+    # {system}
+    # <|user|>
+    # {user}
+    # <|assistant|>
+    # """
+    return f"""\\n
     {system}
-    <|user|>
+    \n
     {user}
+    \n
     <|assistant|>
     """
 
@@ -86,7 +93,8 @@ def create_prompt(
 def formatting_prompts_func(example):
     output_texts = []
     for i in range(len(example["system"])):
-        text = f"<|system|>\n{example['system'][i]}\n<|user|>\n{example['user'][i]}\n<|assistant|>\n{example['assistant'][i]}<|endoftext|>"
+        # text = f"<|system|>\n{example['system'][i]}\n<|user|>\n{example['user'][i]}\n<|assistant|>\n{example['assistant'][i]}<|endoftext|>"
+        text = f"\n{example['system'][i]}\n\n{example['user'][i]}\n<|assistant|>\n{example['assistant'][i]}"
         output_texts.append(text)
     return output_texts
 
@@ -247,7 +255,7 @@ def linux_train(
         input_ids = tokenizer(text, return_tensors="pt").input_ids.to(model.device)
         outputs = model.generate(
             input_ids=input_ids,
-            max_new_tokens=256,
+            max_new_tokens=1024,
             pad_token_id=tokenizer.eos_token_id,
             temperature=0.7,
             top_p=0.9,
@@ -294,7 +302,8 @@ def linux_train(
     tokenizer.padding_side = "right"
     output_dir = "./training_results"
     per_device_train_batch_size = 1
-    max_seq_length = 300
+    # max_seq_length = 300
+    max_seq_length = 1024
 
     if device.type == "hpu":
         # Intel Gaudi trainer
